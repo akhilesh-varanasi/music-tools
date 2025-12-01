@@ -2,6 +2,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import ExampleServiceView from '../views/ExampleServiceView.vue'
+import AlbumArtView from '../views/AlbumArtView.vue'
 
 const routes = [
   {
@@ -14,6 +15,7 @@ const routes = [
     name: 'example-service',
     component: ExampleServiceView,
   },
+  { path: '/album-art', name: 'album-art', component: AlbumArtView },
 ]
 
 const router = createRouter({

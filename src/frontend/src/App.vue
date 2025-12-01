@@ -4,7 +4,7 @@
     <header class="taskbar">
       <div class="taskbar-start">
         <span class="start-button">Start</span>
-        <span class="app-title">My Music Tools 95</span>
+        <span class="app-title">Music Guy</span>
       </div>
       <div class="taskbar-clock">
         <span>12:34 PM</span>

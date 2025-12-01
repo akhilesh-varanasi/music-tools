@@ -1,5 +1,5 @@
 <template>
-  <div class="icon-tile" @click="$emit('click')">
+  <div class="icon-tile" @click="handleClick">
     <div class="icon-graphic">🎵</div>
     <div class="icon-label">
       {{ label }}
@@ -8,9 +8,17 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
+const props = defineProps<{
   label: string
 }>()
+
+const emit = defineEmits<{
+  (e: 'activate'): void
+}>()
+
+const handleClick = () => {
+  emit('activate')
+}
 </script>
 
 <style scoped>
