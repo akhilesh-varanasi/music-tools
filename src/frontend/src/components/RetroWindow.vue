@@ -22,10 +22,10 @@ defineProps<{
 
 <style scoped>
 .window {
+  width: min(1100px, 100% - 48px);
   background: #c0c0c0;
   border: 2px solid #000000;
-  box-shadow: 2px 2px 0 #000000;
-  max-width: 640px;
+  box-shadow: 4px 4px 0 #000000;
 }
 
 .title-bar {
@@ -34,8 +34,8 @@ defineProps<{
   align-items: center;
   background: #000080;
   color: #ffffff;
-  padding: 2px 4px;
-  font-size: 12px;
+  padding: 4px 8px;
+  font-size: 14px;
 }
 
 .title {
@@ -44,7 +44,7 @@ defineProps<{
 
 .controls {
   display: flex;
-  gap: 2px;
+  gap: 4px;
 }
 
 .btn {
@@ -52,14 +52,14 @@ defineProps<{
   border-right-color: #404040;
   border-bottom-color: #404040;
   background: #c0c0c0;
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   padding: 0;
-  font-size: 10px;
-  line-height: 12px;
+  font-size: 12px;
 }
+
 .window-body {
-  padding: 8px;
-  font-size: 13px;
+  padding: 16px;
+  font-size: 14px;
 }
 </style>

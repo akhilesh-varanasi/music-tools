@@ -5,10 +5,6 @@ import IconTile from '../components/IconTile.vue'
 
 const router = useRouter()
 
-const goToExample = () => {
-  router.push({ name: 'example-service' })
-}
-
 const goToAlbumArt = () => {
   router.push({ name: 'album-art' })
 }
@@ -22,11 +18,10 @@ const comingSoon = () => {
   <div class="home">
     <RetroWindow title="My Music Utilities">
       <p class="intro">
-        Welcome to <strong>My Music Tools 95</strong>. Choose a utility below:
+        Welcome to <strong>Music Guy</strong>. Choose a utility below:
       </p>
 
       <div class="icon-grid">
-        <IconTile label="Example Service" @activate="goToExample" />
         <IconTile label="Album Art Replacer" @activate="goToAlbumArt" />
         <IconTile label="Tag Cleaner" @activate="comingSoon" />
         <IconTile label="Playlist Tools" @activate="comingSoon" />

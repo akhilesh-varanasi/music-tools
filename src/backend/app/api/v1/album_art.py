@@ -1,69 +1,66 @@
 # app/api/v1/album_art.py
 from pathlib import Path
+from typing import List
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.services.album_art import replace_album_art_in_place, replace_album_art_bytes
-from fastapi import UploadFile, File
-from fastapi.responses import StreamingResponse
+from app.services.album_art import (
+    gather_batch_paths,
+    batch_replace_album_art_in_place,
+)
 import io
 
 router = APIRouter(prefix="/album-art", tags=["album-art"])
 
+class BatchPathsRequest(BaseModel):
+    # Each entry may be:
+    #   - a file path
+    #   - a directory path
+    song_paths: List[str] = []
+    image_paths: List[str] = []
 
-# existing upload-based endpoint (browser-friendly)
-@router.post("/single")
-async def replace_single_album_art(
-    song: UploadFile = File(...),
-    image: UploadFile = File(...),
-):
-    song_filename = song.filename or "song.mp3"
-    image_filename = image.filename or "cover.jpg"
 
-    if not song_filename.lower().endswith(".mp3"):
-        raise HTTPException(status_code=400, detail="Only .mp3 files are supported")
+class BatchResultItem(BaseModel):
+    song_path: str
+    image_used: str | None = None
+    success: bool
+    error: str | None = None
 
-    song_bytes = await song.read()
-    image_bytes = await image.read()
 
+class BatchPathsResponse(BaseModel):
+    results: List[BatchResultItem]
+    total_songs: int
+    total_success: int
+    total_failed: int
+
+
+@router.post("/batch-paths", response_model=BatchPathsResponse)
+async def replace_batch_album_art_paths(body: BatchPathsRequest):
     try:
-        updated_bytes, output_name = replace_album_art_bytes(
-            mp3_bytes=song_bytes,
-            mp3_filename=song_filename,
-            image_bytes=image_bytes,
-            image_filename=image_filename,
+        song_paths, image_paths = gather_batch_paths(
+            song_paths=body.song_paths,
+            image_paths=body.image_paths,
         )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=500, detail="Failed to update album art")
-
-    return StreamingResponse(
-        io.BytesIO(updated_bytes),
-        media_type="audio/mpeg",
-        headers={
-            "Content-Disposition": f'attachment; filename="{output_name}"'
-        },
-    )
-
-
-class SinglePathRequest(BaseModel):
-    mp3_path: str
-    image_path: str
-
-@router.post("/single-path")
-async def replace_single_album_art_path(body: SinglePathRequest):
-    mp3_path = Path(body.mp3_path).expanduser()
-    image_path = Path(body.image_path).expanduser()
-
-    try:
-        replace_album_art_in_place(mp3_path, image_path)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=500, detail="Failed to update album art")
 
-    return {"status": "ok", "mp3_path": str(mp3_path)}
+    try:
+        raw_results = batch_replace_album_art_in_place(song_paths, image_paths)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    results = [BatchResultItem(**r) for r in raw_results]
+    total_songs = len(results)
+    total_success = sum(1 for r in results if r.success)
+    total_failed = total_songs - total_success
+
+    return BatchPathsResponse(
+        results=results,
+        total_songs=total_songs,
+        total_success=total_success,
+        total_failed=total_failed,
+    )
