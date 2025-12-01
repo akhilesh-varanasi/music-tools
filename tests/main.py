@@ -1,4 +1,4 @@
-from mutagen.id3 import ID3, APIC
+from mutagen.id3 import ID3, APIC # type: ignore
 from pathlib import Path
 from PIL import Image
 from io import BytesIO
