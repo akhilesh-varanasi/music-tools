@@ -1,6 +1,16 @@
+<!-- src/components/IconTile.vue -->
 <template>
-  <div class="icon-tile" @click="handleClick">
-    <div class="icon-graphic" :style="{ backgroundColor: bgColor || defaultBg }">
+  <div
+    class="icon-tile"
+    :data-tooltip="tooltip || null"
+    @click="handleClick"
+  >
+    <div
+      class="icon-graphic"
+      :class="{ 'icon-graphic--image': !!iconSrc }"
+      :style="iconSrc ? {} : { backgroundColor: bgColor || defaultBg }"
+    >
+      <!-- If PNG provided, use it without background box -->
       <img
         v-if="iconSrc"
         :src="iconSrc"
@@ -8,7 +18,7 @@
         class="icon-img"
         draggable="false"
       />
-      <!-- Fallback: emoji/text icon -->
+      <!-- Fallback: emoji/text icon inside retro square -->
       <span v-else class="icon-text">
         {{ icon || '🎵' }}
       </span>
@@ -20,11 +30,12 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{
+const { label, icon, bgColor, iconSrc, tooltip } = defineProps<{
   label: string
-  icon?: string         // optional emoji/text fallback
-  bgColor?: string      // optional background color
-  iconSrc?: string      // optional PNG path
+  icon?: string
+  bgColor?: string
+  iconSrc?: string
+  tooltip?: string
 }>()
 
 const emit = defineEmits<{
@@ -40,6 +51,7 @@ const handleClick = () => {
 
 <style scoped>
 .icon-tile {
+  position: relative; /* needed for tooltip positioning */
   width: 110px;
   display: flex;
   flex-direction: column;
@@ -49,6 +61,7 @@ const handleClick = () => {
   user-select: none;
 }
 
+/* Default: retro square box for emoji/text icons */
 .icon-graphic {
   width: 64px;
   height: 64px;
@@ -60,13 +73,24 @@ const handleClick = () => {
   overflow: hidden;
 }
 
-.icon-img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  image-rendering: pixelated; /* subject to change */
+/* When using PNG: no background box */
+.icon-graphic--image {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  width: auto;
+  height: auto;
 }
 
+/* PNG icon */
+.icon-img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  image-rendering: pixelated; /* optional: retro feel */
+}
+
+/* Emoji/text fallback */
 .icon-text {
   font-size: 28px;
 }
@@ -81,5 +105,30 @@ const handleClick = () => {
   font-size: 12px;
   text-align: center;
   line-height: 1.2;
+}
+
+/* --- Custom tooltip (instant) --- */
+
+.icon-tile[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -32px;
+  white-space: nowrap;
+  background: #ffffe1; /* classic tooltip yellow-ish */
+  color: #000000;
+  border: 1px solid #404040;
+  padding: 2px 6px;
+  font-size: 12px;
+  box-shadow: 2px 2px 0 #000000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.05s linear;
+  z-index: 10;
+}
+
+.icon-tile[data-tooltip]:hover::after {
+  opacity: 1;
 }
 </style>

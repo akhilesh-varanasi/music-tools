@@ -3,6 +3,12 @@ import { useRouter } from 'vue-router'
 import RetroWindow from '../components/RetroWindow.vue'
 import IconTile from '../components/IconTile.vue'
 
+// Import PNGs (Vite will handle bundling)
+import albumArtIcon from '../assets/icons/album-art.png'
+import yt2mp3Icon from '../assets/icons/yt-to-mp3.png'
+import musicAnalyzer from '../assets/icons/music-analyzer.png'
+import worldDestroyer from '../assets/icons/dagger.png'
+
 const router = useRouter()
 
 const goToAlbumArt = () => {
@@ -22,10 +28,36 @@ const comingSoon = () => {
       </p>
 
       <div class="icon-grid">
-        <IconTile label="Album Art Replacer" @activate="goToAlbumArt" />
-        <IconTile label="Tag Cleaner" @activate="comingSoon" />
-        <IconTile label="Playlist Tools" @activate="comingSoon" />
-        <IconTile label="Audio Lab" @activate="comingSoon" />
+        <IconTile
+          label="Album Art Replacer"
+          :icon-src="albumArtIcon"
+          tooltip="Replace ya album art"
+          bgColor="#202040"
+          @activate="goToAlbumArt"
+        />
+
+        <IconTile
+          label="YouTube2MP3"
+          :icon-src="yt2mp3Icon"
+          tooltip="The artist formerly known as Ironchad"
+          bgColor="#204020"
+          @activate="comingSoon"
+        />
+
+        <IconTile
+          label="Music Analyzer"
+          :icon-src="musicAnalyzer"
+          bgColor="#402020"
+          @activate="comingSoon"
+        />
+
+        <IconTile
+          label="World Destroyer 9000"
+          :icon-src="worldDestroyer"
+          tooltip="Confidential"
+          bgColor="#404020"
+          @activate="comingSoon"
+        />
       </div>
     </RetroWindow>
   </div>
@@ -38,11 +70,13 @@ const comingSoon = () => {
   justify-content: center;
   padding-top: 32px;
 }
+
 .icon-grid {
   display: flex;
   flex-wrap: wrap;
   margin-top: 12px;
 }
+
 .intro {
   margin-bottom: 8px;
 }
