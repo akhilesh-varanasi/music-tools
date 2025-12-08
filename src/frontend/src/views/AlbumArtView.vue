@@ -160,7 +160,7 @@ const goHome = () => {
       </div>
 
       <div class="buttons">
-        <button class="btn" :disabled="loading" @click="runReplace">
+        <button class="btn btn--primary" :disabled="loading" @click="runReplace">
           {{ loading ? 'Processing...' : 'Run replace' }}
         </button>
         <button class="btn" @click="goHome">
@@ -263,6 +263,7 @@ const goHome = () => {
   border-bottom-color: #404040;
   background: #ffffff;
   font-family: "MS Sans Serif", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #000000;
 }
 
 .textarea {
@@ -274,27 +275,13 @@ const goHome = () => {
   background: #ffffff;
   resize: vertical;
   font-family: "MS Sans Serif", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #000000;
 }
 
 .buttons {
   margin-top: 10px;
   display: flex;
   gap: 8px;
-}
-
-.btn {
-  padding: 2px 10px;
-  border: 2px solid #404040;
-  border-right-color: #ffffff;
-  border-bottom-color: #ffffff;
-  background: #c0c0c0;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: default;
 }
 
 .error {

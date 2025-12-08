@@ -58,6 +58,33 @@ button:focus-visible {
   padding: 2em;
 }
 
+.btn {
+  padding: 4px 14px;
+  border: 2px solid #404040;
+  border-right-color: #ffffff;
+  border-bottom-color: #ffffff;
+  background: #c0c0c0;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: "MS Sans Serif", system-ui, -apple-system, BlinkMacSystemFont,
+    sans-serif;
+}
+
+.btn--primary {
+  background: #008000;
+  color: #ffffff;
+}
+
+.btn--danger {
+  background: #800000;
+  color: #ffffff;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 #app {
   height: 100vh;
   width: 100vw;

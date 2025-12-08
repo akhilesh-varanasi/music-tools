@@ -15,6 +15,10 @@ const goToAlbumArt = () => {
   router.push({ name: 'album-art' })
 }
 
+const goToYt2Mp3 = () => {
+  router.push({ name: 'yt2mp3' })
+}
+
 const comingSoon = () => {
   alert('This utility is coming soon!')
 }
@@ -41,7 +45,7 @@ const comingSoon = () => {
           :icon-src="yt2mp3Icon"
           tooltip="The artist formerly known as Ironchad"
           bgColor="#204020"
-          @activate="comingSoon"
+          @activate="goToYt2Mp3"
         />
 
         <IconTile

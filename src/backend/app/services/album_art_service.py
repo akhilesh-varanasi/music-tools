@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Tuple, List, Dict, Any
+from typing import Set, Tuple, List, Dict, Any
 import random
 
 from mutagen.id3 import ID3, APIC, error as ID3Error
@@ -104,29 +104,38 @@ def replace_album_art_bytes(
     output_name = mp3_filename
     return updated_bytes, output_name
 
-def _collect_song_paths_from_any(song_paths: List[str]) -> List[Path]:
+def _collect_paths_from_any(
+    raw_paths: List[str],
+    allowed_suffixes: Set[str],
+    empty_error_label: str,
+    debug_label: str | None = None,
+) -> List[Path]:
     """
-    For each entry in song_paths:
-      - if it's a file -> include if .mp3
-      - if it's a directory -> include all **/*.mp3
+    For each entry in raw_paths:
+      - if it's a file -> include if suffix is allowed
+      - if it's a directory -> include all matching files under **/*
+    De-dups and ensures paths exist.
     """
     collected: List[Path] = []
 
-    for raw in song_paths:
+    for raw in raw_paths:
         if not raw:
             continue
         p = Path(raw).expanduser()
         if p.is_dir():
-            for mp3 in p.glob("**/*.mp3"):
-                if mp3.is_file():
-                    collected.append(mp3)
+            for candidate in p.rglob("*"):
+                if candidate.is_file():
+                    collected.append(candidate)
         else:
             collected.append(p)
 
-    # de-dup & filter to existing .mp3 files
+    if debug_label:
+        print(f"{debug_label} collected (pre-filter): {collected}")
+
     unique: Dict[str, Path] = {}
     for p in collected:
-        if p.suffix.lower() != ".mp3":
+        suffix = p.suffix.lower()
+        if suffix not in allowed_suffixes:
             continue
         if not p.exists():
             continue
@@ -135,9 +144,26 @@ def _collect_song_paths_from_any(song_paths: List[str]) -> List[Path]:
 
     result = list(unique.values())
     if not result:
-        raise ValueError("No .mp3 songs found from provided paths/folders")
+        raise ValueError(f"No {empty_error_label} found from provided paths/folders")
+
+    if debug_label:
+        print(f"{debug_label} collected (filtered): {result}")
 
     return result
+
+
+def _collect_song_paths_from_any(song_paths: List[str]) -> List[Path]:
+    """
+    For each entry in song_paths:
+      - if it's a file -> include if .mp3
+      - if it's a directory -> include all **/*.mp3
+    """
+    return _collect_paths_from_any(
+        raw_paths=song_paths,
+        allowed_suffixes={".mp3"},
+        empty_error_label=".mp3 songs",
+        debug_label="songs",
+    )
 
 
 def _collect_image_paths_from_any(image_paths: List[str]) -> List[Path]:
@@ -146,34 +172,12 @@ def _collect_image_paths_from_any(image_paths: List[str]) -> List[Path]:
       - if it's a file -> include if supported image type
       - if it's a directory -> include all supported images under **/*
     """
-    collected: List[Path] = []
-
-    for raw in image_paths:
-        if not raw:
-            continue
-        p = Path(raw).expanduser()
-        if p.is_dir():
-            for candidate in p.glob("**/*"):
-                if candidate.is_file():
-                    collected.append(candidate)
-        else:
-            collected.append(p)
-
-    unique: Dict[str, Path] = {}
-    for p in collected:
-        suffix = p.suffix.lower()
-        if suffix not in ALLOWED_IMAGE_MIME:
-            continue
-        if not p.exists():
-            continue
-        key = str(p.resolve())
-        unique[key] = p
-
-    result = list(unique.values())
-    if not result:
-        raise ValueError("No supported image files found from provided paths/folders")
-
-    return result
+    return _collect_paths_from_any(
+        raw_paths=image_paths,
+        allowed_suffixes=set(ALLOWED_IMAGE_MIME.keys()),
+        empty_error_label="supported image files",
+        debug_label="images",
+    )
 
 
 def gather_batch_paths(
@@ -186,6 +190,8 @@ def gather_batch_paths(
       - a file path, OR
       - a directory path (recursively scanned)
     """
+    print(f"song paths: {song_paths}")
+    print(f"image paths: {image_paths}")
     songs = _collect_song_paths_from_any(song_paths)
     images = _collect_image_paths_from_any(image_paths)
     return songs, images

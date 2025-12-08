@@ -6,7 +6,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.services.album_art import (
+from app.services.album_art_service import (
     gather_batch_paths,
     batch_replace_album_art_in_place,
 )
