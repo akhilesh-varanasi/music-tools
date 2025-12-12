@@ -5,7 +5,7 @@
       <div class="controls">
         <button class="btn">_</button>
         <button class="btn">□</button>
-        <button class="btn">X</button>
+        <button class="btn" @click=goHome>X</button>
       </div>
     </div>
     <div class="window-body">
@@ -18,6 +18,11 @@
 defineProps<{
   title: string
 }>()
+import { useRouter } from 'vue-router'
+const router = useRouter()
+const goHome = () => {
+  router.push({ name: 'home' })
+}
 </script>
 
 <style scoped>

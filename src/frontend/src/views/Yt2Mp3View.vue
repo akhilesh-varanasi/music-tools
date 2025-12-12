@@ -1,4 +1,3 @@
-<!-- src/views/Yt2Mp3View.vue -->
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
@@ -6,8 +5,9 @@ import RetroWindow from '../components/RetroWindow.vue'
 
 const router = useRouter()
 
-const urlsText = ref('')        // one URL per line
-const outputDir = ref('')       // single folder for all downloads
+const videoUrlsText = ref('')
+const playlistUrlsText = ref('')
+const outputDir = ref('')
 
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -23,20 +23,53 @@ const results = ref<
   }>
 >([])
 
-const parsedUrls = computed(() =>
-  urlsText.value
+function sanitizeVideoUrl(raw: string): string | null {
+  const trimmed = raw.trim()
+  if (!trimmed) return null
+
+  try {
+    const url = new URL(trimmed)
+
+    const params = url.searchParams
+    params.delete('list')
+    params.delete('start_radio')
+    params.delete('index')
+
+    url.search = params.toString()
+    return url.toString()
+  } catch {
+    return trimmed
+  }
+}
+
+const parsedVideoUrls = computed(() =>
+  videoUrlsText.value
+    .split(/\r?\n/)
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(sanitizeVideoUrl)
+    .filter((u): u is string => !!u),
+)
+
+const parsedPlaylistUrls = computed(() =>
+  playlistUrlsText.value
     .split(/\r?\n/)
     .map(s => s.trim())
     .filter(Boolean),
 )
+
+const combinedUrls = computed(() => [
+  ...parsedVideoUrls.value,
+  ...parsedPlaylistUrls.value,
+])
 
 const runDownload = async () => {
   error.value = null
   summary.value = null
   results.value = []
 
-  if (parsedUrls.value.length === 0) {
-    error.value = 'Please enter at least one YouTube URL.'
+  if (combinedUrls.value.length === 0) {
+    error.value = 'Please enter at least one video or playlist URL.'
     return
   }
 
@@ -51,7 +84,7 @@ const runDownload = async () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        urls: parsedUrls.value,
+        urls: combinedUrls.value,
         output_dir: outputDir.value,
       }),
     })
@@ -97,7 +130,7 @@ const goHome = () => {
       <header class="header">
         <div class="header-title">Ironchadder</div>
         <div class="header-subtitle">
-          Paste one or more YouTube links, pick a folder, and we’ll save all
+          Paste YouTube links, pick a folder, and we’ll save all
           tracks as MP3s.
         </div>
       </header>
@@ -105,32 +138,44 @@ const goHome = () => {
       <div class="hint-bar">
         <span class="hint-label">How it works:</span>
         <ul>
-          <li>Each line in the URL list can be a video or a playlist.</li>
-          <li>Playlists are expanded into individual tracks automatically.</li>
+          <li>Use <strong>Videos</strong> box for individual songs.</li>
+          <li>Use <strong>Playlists</strong> box for full playlists.</li>
           <li>All MP3s are written into the single output folder.</li>
         </ul>
       </div>
 
       <div class="panels">
         <section class="panel panel-left">
-          <h4 class="panel-title">1. YouTube URLs</h4>
+          <h4 class="panel-title">YouTube URLs</h4>
+
           <p class="panel-help">
-            Paste one URL per line.
+            <strong>Singles:</strong> all your single songs here. format does not matter.
           </p>
           <textarea
-            v-model="urlsText"
+            v-model="videoUrlsText"
             class="textarea"
-            rows="8"
-            placeholder="https://www.youtube.com/watch?v=...
-https://www.youtube.com/playlist?list=..."
+            rows="5"
+            placeholder="https://www.youtube.com/watch?v=..."
+          />
+
+        <p class="panel-help" style="margin-top: 10px;">
+        <strong>Playlists:</strong>
+        drop ya playlists. if u include single songs here that look like
+        <code class="inline-url">https://www.youtube.com/watch?v=ID&amp;list=X&amp;start_radio=1</code>
+        then it'll download random shit.
+        </p>
+          <textarea
+            v-model="playlistUrlsText"
+            class="textarea"
+            rows="5"
+            placeholder="https://www.youtube.com/playlist?list=..."
           />
         </section>
 
         <section class="panel panel-right">
-          <h4 class="panel-title">2. Output folder</h4>
+          <h4 class="panel-title">Output folder</h4>
           <p class="panel-help">
-            All MP3 files will be saved to this folder. Later, this will become a
-            folder picker in the desktop app.
+            All MP3 files will be saved to this folder.
           </p>
           <input
             v-model="outputDir"
@@ -141,10 +186,10 @@ https://www.youtube.com/playlist?list=..."
 
           <div class="buttons">
             <button class="btn btn--primary" :disabled="loading" @click="runDownload">
-            {{ loading ? 'Downloading…' : 'Download MP3s' }}
+              {{ loading ? 'Downloading…' : 'Download MP3s' }}
             </button>
             <button class="btn" @click="goHome">
-            Back to desktop
+              Back to desktop
             </button>
           </div>
 
@@ -373,5 +418,15 @@ https://www.youtube.com/playlist?list=..."
 .fail {
   color: #c00000;
   font-weight: bold;
+}
+
+.inline-url {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Courier New", monospace;
+  font-size: 12px;
+  padding: 1px 3px;
+  background: #f0f0f0;
+  border: 1px solid #c0c0c0;
+  border-radius: 2px;
+  white-space: nowrap;
 }
 </style>
