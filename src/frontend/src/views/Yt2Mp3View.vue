@@ -2,8 +2,12 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import RetroWindow from '../components/RetroWindow.vue'
+import { getDesktopApi, isDesktop as isDesktopEnv } from '../utils/desktop'
 
 const router = useRouter()
+
+const desktop = getDesktopApi()
+const isDesktop = isDesktopEnv()
 
 const videoUrlsText = ref('')
 const playlistUrlsText = ref('')
@@ -63,6 +67,12 @@ const combinedUrls = computed(() => [
   ...parsedPlaylistUrls.value,
 ])
 
+const pickOutputFolder = async () => {
+  if (!desktop) return
+  const folder = await desktop.pick_folder('Pick output folder')
+  if (folder) outputDir.value = folder
+}
+
 const runDownload = async () => {
   error.value = null
   summary.value = null
@@ -80,6 +90,19 @@ const runDownload = async () => {
 
   loading.value = true
   try {
+    if (desktop) {
+      const data = await desktop.yt2mp3_download(combinedUrls.value, outputDir.value)
+
+      results.value = data.results || []
+
+      const total = data.total_tracks ?? results.value.length
+      const ok = data.total_success ?? results.value.filter(r => r.success).length
+      const failed = data.total_failed ?? total - ok
+
+      summary.value = `Downloaded ${ok} of ${total} track(s). ${failed} failed.`
+      return
+    }
+
     const res = await fetch('/api/v1/yt2mp3/batch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -98,9 +121,7 @@ const runDownload = async () => {
             ? data.detail.map((d: any) => d.msg ?? d).join(', ')
             : data.detail
         }
-      } catch {
-        // ignore parse error
-      }
+      } catch {}
       throw new Error(message)
     }
 
@@ -158,12 +179,12 @@ const goHome = () => {
             placeholder="https://www.youtube.com/watch?v=..."
           />
 
-        <p class="panel-help" style="margin-top: 10px;">
-        <strong>Playlists:</strong>
-        drop ya playlists. if u include single songs here that look like
-        <code class="inline-url">https://www.youtube.com/watch?v=ID&amp;list=X&amp;start_radio=1</code>
-        then it'll download random shit.
-        </p>
+          <p class="panel-help" style="margin-top: 10px;">
+            <strong>Playlists:</strong>
+            drop ya playlists. if u include single songs here that look like
+            <code class="inline-url">https://www.youtube.com/watch?v=ID&amp;list=X&amp;start_radio=1</code>
+            then it'll download random shit.
+          </p>
           <textarea
             v-model="playlistUrlsText"
             class="textarea"
@@ -183,6 +204,12 @@ const goHome = () => {
             class="input"
             placeholder="/Users/you/Music/YTDownloads"
           />
+
+          <div v-if="isDesktop" class="picker-row">
+            <button class="btn" :disabled="loading" @click="pickOutputFolder">
+              Pick folder
+            </button>
+          </div>
 
           <div class="buttons">
             <button class="btn btn--primary" :disabled="loading" @click="runDownload">
@@ -243,7 +270,6 @@ const goHome = () => {
   padding: 24px;
 }
 
-/* Top header inside window */
 .header {
   margin-bottom: 10px;
   border-bottom: 2px groove #ffffff;
@@ -259,7 +285,6 @@ const goHome = () => {
   font-size: 14px;
 }
 
-/* Hint bar */
 .hint-bar {
   display: flex;
   gap: 8px;
@@ -282,7 +307,6 @@ const goHome = () => {
   font-size: 13px;
 }
 
-/* Two main panels */
 .panels {
   display: flex;
   gap: 16px;
@@ -308,13 +332,6 @@ const goHome = () => {
 .panel-help {
   margin: 0 0 8px;
   font-size: 13px;
-}
-
-/* Inputs */
-.label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
 .input {
@@ -350,14 +367,16 @@ const goHome = () => {
   color: #555555;
 }
 
-/* Buttons */
+.picker-row {
+  margin-top: 8px;
+}
+
 .buttons {
   margin-top: 12px;
   display: flex;
   gap: 10px;
 }
 
-/* Messages */
 .error {
   margin-top: 10px;
   color: #c00000;
@@ -370,7 +389,6 @@ const goHome = () => {
   font-size: 13px;
 }
 
-/* Results table */
 .results-window {
   margin-top: 16px;
   border: 2px solid #000000;

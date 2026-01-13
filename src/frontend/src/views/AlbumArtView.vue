@@ -1,12 +1,17 @@
+<!-- src/views/AlbumArtView.vue -->
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import RetroWindow from '../components/RetroWindow.vue'
+import { getDesktopApi, isDesktop as isDesktopEnv } from '../utils/desktop'
 
 const router = useRouter()
 
-const songPathsText = ref('')   // one song path OR folder per line
-const imagePathsText = ref('')  // one image path OR folder per line
+const desktop = getDesktopApi()
+const isDesktop = isDesktopEnv()
+
+const songPathsText = ref('')
+const imagePathsText = ref('')
 
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -34,6 +39,24 @@ const parsedImagePaths = computed(() =>
     .filter(Boolean),
 )
 
+const pickSongs = async () => {
+  if (!desktop) return
+  const picked = await desktop.pick_files('Pick songs', [['MP3', '*.mp3']], true)
+  if (!picked.length) return
+  songPathsText.value = picked.join('\n')
+}
+
+const pickImages = async () => {
+  if (!desktop) return
+  const picked = await desktop.pick_files(
+    'Pick images',
+    [['Images', '*.png;*.jpg;*.jpeg']],
+    true,
+  )
+  if (!picked.length) return
+  imagePathsText.value = picked.join('\n')
+}
+
 const runReplace = async () => {
   error.value = null
   summary.value = null
@@ -56,6 +79,22 @@ const runReplace = async () => {
 
   loading.value = true
   try {
+    if (desktop) {
+      const data = await desktop.album_art_replace(
+        parsedSongPaths.value,
+        parsedImagePaths.value,
+      )
+
+      results.value = data.results || []
+      const total = data.total_songs ?? results.value.length
+      const ok =
+        data.total_success ?? results.value.filter(r => r.success).length
+      const failed = data.total_failed ?? total - ok
+
+      summary.value = `Processed ${total} song(s): ${ok} succeeded, ${failed} failed.`
+      return
+    }
+
     const res = await fetch('/api/v1/album-art/batch-paths', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -74,9 +113,7 @@ const runReplace = async () => {
             ? data.detail.map((d: any) => d.msg ?? d).join(', ')
             : data.detail
         }
-      } catch {
-        // ignore parse error
-      }
+      } catch {}
       throw new Error(message)
     }
 
@@ -102,26 +139,25 @@ const goHome = () => {
 <template>
   <div class="view">
     <RetroWindow title="Album Art Replacer">
-
       <ul class="hint-list">
         <li>
-            Each line can be a <strong>file</strong> or a <strong>folder</strong>.
-            Folders are scanned recursively for valid files.
+          Each line can be a <strong>file</strong> or a <strong>folder</strong>.
+          Folders are scanned recursively for valid files.
         </li>
         <li>
-            <strong>Single replace:</strong> enter one song path and one image path.
-            That song’s art will be replaced with that image.
+          <strong>Single replace:</strong> enter one song path and one image path.
+          That song’s art will be replaced with that image.
         </li>
         <li>
-            <strong>Same art for many songs:</strong> enter many songs (or song folders)
-            and <em>one</em> image. All songs will get that art.
+          <strong>Same art for many songs:</strong> enter many songs (or song
+          folders) and <em>one</em> image. All songs will get that art.
         </li>
         <li>
-            <strong>Shuffle art for many songs:</strong> enter many songs (or song folders)
-            and many images (or image folders). Each song gets a random image.
+          <strong>Shuffle art for many songs:</strong> enter many songs (or song
+          folders) and many images (or image folders). Each song gets a random
+          image.
         </li>
       </ul>
-
 
       <div class="two-column">
         <div class="col">
@@ -129,6 +165,13 @@ const goHome = () => {
           <div class="form-row">
             <label class="label">
               Song paths or folders (one per line):
+
+              <div v-if="isDesktop" class="picker-row">
+                <button class="btn" :disabled="loading" @click="pickSongs">
+                  Pick songs
+                </button>
+              </div>
+
               <textarea
                 v-model="songPathsText"
                 class="textarea"
@@ -146,6 +189,13 @@ const goHome = () => {
           <div class="form-row">
             <label class="label">
               Image paths or folders (one per line):
+
+              <div v-if="isDesktop" class="picker-row">
+                <button class="btn" :disabled="loading" @click="pickImages">
+                  Pick images
+                </button>
+              </div>
+
               <textarea
                 v-model="imagePathsText"
                 class="textarea"
@@ -163,9 +213,7 @@ const goHome = () => {
         <button class="btn btn--primary" :disabled="loading" @click="runReplace">
           {{ loading ? 'Processing...' : 'Run replace' }}
         </button>
-        <button class="btn" @click="goHome">
-          Back to desktop
-        </button>
+        <button class="btn" @click="goHome">Back to desktop</button>
       </div>
 
       <p v-if="error" class="error">
@@ -208,17 +256,11 @@ const goHome = () => {
 
 <style scoped>
 .view {
-  /* Fill the available space and center the window */
-  min-height: calc(100vh - 80px); /* leave room for taskbar */
+  min-height: calc(100vh - 80px);
   display: flex;
   justify-content: center;
   align-items: center;
   padding: 16px;
-}
-
-.desc {
-  margin-bottom: 6px;
-  font-size: 13px;
 }
 
 .hint-list {
@@ -236,7 +278,7 @@ const goHome = () => {
 
 .col {
   flex: 1 1 0;
-  min-width: 0; /* helps prevent overflow */
+  min-width: 0;
 }
 
 .col-title {
@@ -255,15 +297,8 @@ const goHome = () => {
   gap: 4px;
 }
 
-.input {
-  font-size: 12px;
-  padding: 2px 4px;
-  border: 2px solid #ffffff;
-  border-right-color: #404040;
-  border-bottom-color: #404040;
-  background: #ffffff;
-  font-family: "MS Sans Serif", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  color: #000000;
+.picker-row {
+  margin: 4px 0 2px;
 }
 
 .textarea {
@@ -274,7 +309,8 @@ const goHome = () => {
   border-bottom-color: #404040;
   background: #ffffff;
   resize: vertical;
-  font-family: "MS Sans Serif", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: "MS Sans Serif", system-ui, -apple-system, BlinkMacSystemFont,
+    sans-serif;
   color: #000000;
 }
 
@@ -296,15 +332,14 @@ const goHome = () => {
   font-size: 12px;
 }
 
-/* Results area: keep inside window with scroll */
 .results-window {
   margin-top: 10px;
   border: 2px solid #000000;
   background: #ffffff;
   padding: 4px;
-  max-height: 220px;      /* constrain height */
-  overflow-y: auto;       /* vertical scroll if many rows */
-  overflow-x: auto;       /* horizontal scroll if long paths */
+  max-height: 220px;
+  overflow-y: auto;
+  overflow-x: auto;
 }
 
 .results-title {
@@ -323,7 +358,7 @@ const goHome = () => {
   border: 1px solid #808080;
   padding: 3px 4px;
   vertical-align: top;
-  word-break: break-all; /* long paths wrap instead of blowing layout */
+  word-break: break-all;
 }
 
 .results-table thead {

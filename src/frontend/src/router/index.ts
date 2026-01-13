@@ -1,5 +1,5 @@
 // src/router/index.ts
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, createWebHashHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import AlbumArtView from '../views/AlbumArtView.vue'
 import Yt2Mp3View from '../views/Yt2Mp3View.vue'
@@ -15,8 +15,12 @@ const routes = [
 
 ]
 
+const isDesktopBuild = import.meta.env.MODE === 'desktop'
+
+const history = isDesktopBuild ? createWebHashHistory() : createWebHistory()
+
 const router = createRouter({
-  history: createWebHistory(),
+  history,
   routes,
 })
 
