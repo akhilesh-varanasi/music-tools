@@ -4,3 +4,4 @@
 .venv-desktop
 /build
 dist/MusicGuy
+/desktop/ffmpeg

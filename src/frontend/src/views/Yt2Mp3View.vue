@@ -159,7 +159,7 @@ const goHome = () => {
       <div class="hint-bar">
         <span class="hint-label">How it works:</span>
         <ul>
-          <li>Use <strong>Videos</strong> box for individual songs.</li>
+          <li>Use <strong>Singles</strong> box for individual songs.</li>
           <li>Use <strong>Playlists</strong> box for full playlists.</li>
           <li>All MP3s are written into the single output folder.</li>
         </ul>

@@ -2,14 +2,38 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 from urllib.parse import urlparse, parse_qs, urlencode
+import sys
 
 import yt_dlp
 from yt_dlp.utils import DownloadError
 
 MAX_YTDLP_CONCURRENCY = 16
 
+def _resolve_ffmpeg_location() -> Optional[str]:
+    exe_dir = Path(sys.executable).resolve().parent
+
+    # onedir bundle: ffmpeg sits next to the executable
+    if sys.platform == "win32":
+        if (exe_dir / "ffmpeg.exe").exists():
+            return str(exe_dir)
+    else:
+        if (exe_dir / "ffmpeg").exists():
+            return str(exe_dir)
+
+    # onefile bundle fallback
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        base = Path(meipass)
+        if sys.platform == "win32":
+            if (base / "ffmpeg.exe").exists():
+                return str(base)
+        else:
+            if (base / "ffmpeg").exists():
+                return str(base)
+
+    return None
 
 def _build_ydl_opts(outtmpl: str, listing: bool = False) -> Dict[str, Any]:
     """Build yt-dlp options with Chrome Default cookies."""
@@ -35,6 +59,10 @@ def _build_ydl_opts(outtmpl: str, listing: bool = False) -> Dict[str, Any]:
         opts["extract_flat"] = "in_playlist"
 
         opts.pop("postprocessors", None)
+    
+    ffmpeg_loc = _resolve_ffmpeg_location()
+    if ffmpeg_loc:
+        opts["ffmpeg_location"] = ffmpeg_loc
 
     return opts
 

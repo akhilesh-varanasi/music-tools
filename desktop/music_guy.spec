@@ -1,4 +1,5 @@
 from pathlib import Path
+import sys
 from PyInstaller.utils.hooks import collect_submodules
 
 desktop_dir = Path(SPECPATH).resolve()
@@ -13,10 +14,24 @@ datas = [
     (str(frontend_dist), "src/frontend/dist"),
 ]
 
+binaries = []
+if sys.platform == "darwin":
+    ff_dir = repo_root / "desktop" / "ffmpeg" / "macos-arm64"
+    binaries += [
+        (str(ff_dir / "ffmpeg"), "."),
+        (str(ff_dir / "ffprobe"), "."),
+    ]
+elif sys.platform == "win32":
+    ff_dir = repo_root / "desktop" / "ffmpeg" / "windows-x64"
+    binaries += [
+        (str(ff_dir / "ffmpeg.exe"), "."),
+        (str(ff_dir / "ffprobe.exe"), "."),
+    ]
+
 a = Analysis(
     [str(desktop_dir / "main.py")],
     pathex=[str(repo_root), str(backend_root)],
-    binaries=[],
+    binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
 )

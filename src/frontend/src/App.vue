@@ -7,7 +7,7 @@
         <span class="app-title">Music Guy</span>
       </div>
       <div class="taskbar-clock">
-        <span>12:34 PM</span>
+        <span>{{ time }}</span>
       </div>
     </header>
 
@@ -18,7 +18,31 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted, onUnmounted } from "vue"
+
+const time = ref("")
+
+function updateTime() {
+  const now = new Date()
+  time.value = now.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  })
+}
+
+let timer: number
+
+onMounted(() => {
+  updateTime()
+  timer = window.setInterval(updateTime, 1000)
+})
+
+onUnmounted(() => {
+  clearInterval(timer)
+})
 </script>
+
 
 <style scoped>
 .desktop {
@@ -28,11 +52,15 @@
   background: #008080; /* classic teal */
   font-family: "MS Sans Serif", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   color: #000;
+  overflow-x: hidden;
+  overflow-y: hidden;
 }
 
 .desktop-main {
   flex: 1;
   padding: 16px;
+  overflow: auto;
+  min-height: 0;
 }
 
 /* Taskbar */

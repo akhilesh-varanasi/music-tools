@@ -3,13 +3,27 @@ import { useRouter } from 'vue-router'
 import RetroWindow from '../components/RetroWindow.vue'
 import IconTile from '../components/IconTile.vue'
 
-// Import PNGs (Vite will handle bundling)
 import albumArtIcon from '../assets/icons/album-art.png'
 import yt2mp3Icon from '../assets/icons/yt-to-mp3.png'
 import musicAnalyzer from '../assets/icons/music-analyzer.png'
 import worldDestroyer from '../assets/icons/dagger.png'
+import marioGif from '../assets/animations/mario.gif'
+import doomguyGif from '../assets/animations/doomguy.gif'
+import streetfighterGif from '../assets/animations/streetfighter.gif'
+import linkGif from '../assets/animations/link.gif'
+import ff7Gif from '../assets/animations/ff7.gif'
+import laraGif from '../assets/animations/lara.gif'
 
 const router = useRouter()
+
+const cornerGifs = [
+  { key: 'mario', src: marioGif, alt: 'maaaario' },
+  { key: 'lara', src: laraGif, alt: 'lara' },
+  { key: 'cloud', src: ff7Gif, alt: 'ff7' },
+  { key: 'link', src: linkGif, alt: 'link' },
+  { key: 'doomguy', src: doomguyGif, alt: 'doomdoomdoom' },
+  { key: 'streetfighter', src: streetfighterGif, alt: 'hadouken' },
+] as const
 
 const goToAlbumArt = () => {
   router.push({ name: 'album-art' })
@@ -26,6 +40,16 @@ const comingSoon = () => {
 
 <template>
   <div class="home">
+    <div class="corner-gifs">
+      <img
+        v-for="gif in cornerGifs"
+        :key="gif.key"
+        class="corner-gif"
+        :src="gif.src"
+        :alt="gif.alt"
+      />
+    </div>
+
     <RetroWindow title="My Music Utilities">
       <p class="intro">
         Welcome to <strong>Music Guy</strong>. Choose a utility below:
@@ -51,6 +75,7 @@ const comingSoon = () => {
         <IconTile
           label="Music Analyzer"
           :icon-src="musicAnalyzer"
+          tooltip="Wouldn't you like to know weatherboy"
           bgColor="#402020"
           @activate="comingSoon"
         />
@@ -83,5 +108,23 @@ const comingSoon = () => {
 
 .intro {
   margin-bottom: 8px;
+}
+
+.corner-gifs {
+  position: fixed;
+  bottom: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 8px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.corner-gif {
+  height: 96px;
+  width: auto;
+  image-rendering: pixelated;
 }
 </style>
