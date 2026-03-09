@@ -17,16 +17,21 @@ datas = [
 binaries = []
 if sys.platform == "darwin":
     ff_dir = repo_root / "desktop" / "ffmpeg" / "macos-arm64"
-    binaries += [
-        (str(ff_dir / "ffmpeg"), "."),
-        (str(ff_dir / "ffprobe"), "."),
-    ]
+    for bin_name in ("ffmpeg", "ffprobe"):
+        bin_path = ff_dir / bin_name
+        if bin_path.exists():
+            binaries.append((str(bin_path), "."))
 elif sys.platform == "win32":
-    ff_dir = repo_root / "desktop" / "ffmpeg" / "windows-x64"
-    binaries += [
-        (str(ff_dir / "ffmpeg.exe"), "."),
-        (str(ff_dir / "ffprobe.exe"), "."),
+    ff_dirs = [
+        repo_root / "desktop" / "ffmpeg" / "windows-x64",
+        repo_root / "desktop" / "ffmpeg" / "windows",
     ]
+    ff_dir = next((d for d in ff_dirs if d.exists()), None)
+    if ff_dir:
+        for bin_name in ("ffmpeg.exe", "ffprobe.exe"):
+            bin_path = ff_dir / bin_name
+            if bin_path.exists():
+                binaries.append((str(bin_path), "."))
 
 a = Analysis(
     [str(desktop_dir / "main.py")],

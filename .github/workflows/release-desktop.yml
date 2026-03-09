@@ -48,10 +48,13 @@ jobs:
           pip install -r src/backend/requirements-desktop.txt
           pip install pywebview pyinstaller
 
+      - name: Install frontend deps
+        working-directory: src/frontend
+        run: npm ci
+
       - name: Build frontend desktop bundle
-        run: |
-          npm --prefix src/frontend install
-          npm --prefix src/frontend run build:desktop
+        working-directory: src/frontend
+        run: npm run build:desktop
 
       - name: Package desktop app
         run: pyinstaller --noconfirm --clean desktop/music_guy.spec
