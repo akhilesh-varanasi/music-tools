@@ -6,7 +6,23 @@ from pathlib import Path
 
 import webview
 
-from desktop.bridge import MusicGuyApi
+
+def _bootstrap_repo_on_sys_path() -> None:
+    """Ensure repo root is importable when launched as a script path.
+
+    - `python -m desktop.main` already has repo root on sys.path
+    - `python desktop/main.py` usually does not
+    """
+    repo_root = Path(__file__).resolve().parents[1]
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
+
+try:
+    from desktop.bridge import MusicGuyApi
+except ModuleNotFoundError:
+    _bootstrap_repo_on_sys_path()
+    from desktop.bridge import MusicGuyApi
 
 
 def _repo_root() -> Path:

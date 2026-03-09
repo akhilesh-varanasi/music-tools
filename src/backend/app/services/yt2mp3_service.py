@@ -38,7 +38,9 @@ def _resolve_ffmpeg_location() -> Optional[str]:
 def _build_ydl_opts(outtmpl: str, listing: bool = False) -> Dict[str, Any]:
     """Build yt-dlp options with Chrome Default cookies."""
     opts: Dict[str, Any] = {
-        "format": "bestaudio/best",
+        # Prefer direct HTTPS audio formats first; keep generic fallbacks after.
+        # This helps avoid fragile HLS-only paths when challenge solving is degraded.
+        "format": "bestaudio[protocol!=m3u8][protocol!=m3u8_native]/bestaudio/best",
         "outtmpl": outtmpl,
         "noplaylist": False,
         "postprocessors": [
@@ -48,9 +50,18 @@ def _build_ydl_opts(outtmpl: str, listing: bool = False) -> Dict[str, Any]:
                 "preferredquality": "192",
             }
         ],
-        "quiet": True,
-        "no_warnings": True,
+        "quiet": False,
+        "no_warnings": False,
         "cookiesfrombrowser": ("chrome", "Default"),
+        # YouTube extraction increasingly requires JS challenge solving.
+        # yt-dlp expects a dict format for js_runtimes.
+        "js_runtimes": {"node": {}, "deno": {}},
+        # Allow yt-dlp to fetch the current external challenge solver bundle.
+        "remote_components": ["ejs:github"],
+        "retries": 5,
+        "fragment_retries": 5,
+        "concurrent_fragment_downloads": 1,
+        "skip_unavailable_fragments": False,
     }
 
     if listing:
@@ -69,12 +80,43 @@ def _build_ydl_opts(outtmpl: str, listing: bool = False) -> Dict[str, Any]:
 
 def _map_cookies_error(e: DownloadError) -> str:
     msg = str(e)
-    if "could not find chrome cookies database" in msg.lower():
+    lower = msg.lower()
+
+    if "could not find chrome cookies database" in lower:
         return (
             "Chrome cookies database not found for profile 'Default'. "
             "Please open Chrome on this machine, log into YouTube in the "
             "Default profile, then try again."
         )
+
+    if "no supported javascript runtime could be found" in lower:
+        return (
+            "yt-dlp could not find a supported JavaScript runtime for YouTube "
+            "challenge solving. Install Node.js and ensure `node` is available "
+            "in PATH for the Python process running this app, then retry."
+        )
+
+    if "signature solving failed" in lower or "n challenge solving failed" in lower:
+        return (
+            "YouTube challenge/signature solving failed, which can cause broken "
+            "or missing media URLs. Ensure Node.js is installed, keep yt-dlp "
+            "updated, and allow the EJS remote component (ejs:github)."
+        )
+
+    if "requested format is not available" in lower or "only images are available" in lower:
+        return (
+            "No playable audio format was exposed by YouTube for this request. "
+            "This is commonly a challenge-solver issue. Ensure Node.js is in PATH, "
+            "update yt-dlp, and allow remote component `ejs:github`."
+        )
+
+    if "downloaded file is empty" in lower:
+        return (
+            "The remote stream returned no media fragments. This is usually a "
+            "YouTube challenge/runtime issue. Ensure Node.js is installed and "
+            "yt-dlp is up to date in this environment."
+        )
+
     return msg
 
 
@@ -142,6 +184,7 @@ def _download_single_track(
 
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
+            print("into single track dl")
             info = ydl.extract_info(entry_url, download=True)
     except DownloadError as e:
         err = _map_cookies_error(e)
@@ -164,6 +207,7 @@ def _download_single_track(
         }
 
     title = info.get("title") or title_hint or "(untitled)"
+    print(f"title to prove no collisions: {title}")
     output_path = str(output_dir / f"{title}.mp3")
 
     return root_index, {

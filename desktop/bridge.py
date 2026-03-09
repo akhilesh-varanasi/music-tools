@@ -51,7 +51,7 @@ class MusicGuyApi:
         filters = self._normalize_file_types(file_types)
 
         result = webview.windows[0].create_file_dialog(
-            webview.OPEN_DIALOG,
+            webview.FileDialog.OPEN,
             allow_multiple=allow_multiple,
             file_types=filters,
             # title=title,
@@ -63,7 +63,7 @@ class MusicGuyApi:
 
 
     def pick_folder(self, title: str = "Select folder") -> Optional[str]:
-        result = webview.windows[0].create_file_dialog(webview.FOLDER_DIALOG)
+        result = webview.windows[0].create_file_dialog(webview.FileDialog.FOLDER)
         if not result:
             return None
         return str(result[0])
@@ -75,7 +75,7 @@ class MusicGuyApi:
         default_filename: str = "",
     ) -> Optional[str]:
         result = webview.windows[0].create_file_dialog(
-            webview.SAVE_DIALOG,
+            webview.FileDialog.SAVE,
             save_filename=default_filename or None,
             file_types=file_types or (),
         )
