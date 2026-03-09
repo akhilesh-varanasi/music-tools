@@ -34,9 +34,7 @@ class Yt2Mp3Response(BaseModel):
 
 @router.post("/batch", response_model=Yt2Mp3Response)
 async def yt2mp3_batch(body: Yt2Mp3Request):
-    print("hello")
     urls = [u.strip() for u in body.urls if u and u.strip()]
-    print(f"found urls: {urls}")
     if not urls:
         raise HTTPException(status_code=400, detail="No URLs provided")
 

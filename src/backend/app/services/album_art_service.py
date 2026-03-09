@@ -108,7 +108,6 @@ def _collect_paths_from_any(
     raw_paths: List[str],
     allowed_suffixes: Set[str],
     empty_error_label: str,
-    debug_label: str | None = None,
 ) -> List[Path]:
     """
     For each entry in raw_paths:
@@ -129,9 +128,6 @@ def _collect_paths_from_any(
         else:
             collected.append(p)
 
-    if debug_label:
-        print(f"{debug_label} collected (pre-filter): {collected}")
-
     unique: Dict[str, Path] = {}
     for p in collected:
         suffix = p.suffix.lower()
@@ -146,9 +142,6 @@ def _collect_paths_from_any(
     if not result:
         raise ValueError(f"No {empty_error_label} found from provided paths/folders")
 
-    if debug_label:
-        print(f"{debug_label} collected (filtered): {result}")
-
     return result
 
 
@@ -162,7 +155,6 @@ def _collect_song_paths_from_any(song_paths: List[str]) -> List[Path]:
         raw_paths=song_paths,
         allowed_suffixes={".mp3"},
         empty_error_label=".mp3 songs",
-        debug_label="songs",
     )
 
 
@@ -176,7 +168,6 @@ def _collect_image_paths_from_any(image_paths: List[str]) -> List[Path]:
         raw_paths=image_paths,
         allowed_suffixes=set(ALLOWED_IMAGE_MIME.keys()),
         empty_error_label="supported image files",
-        debug_label="images",
     )
 
 
@@ -190,8 +181,6 @@ def gather_batch_paths(
       - a file path, OR
       - a directory path (recursively scanned)
     """
-    print(f"song paths: {song_paths}")
-    print(f"image paths: {image_paths}")
     songs = _collect_song_paths_from_any(song_paths)
     images = _collect_image_paths_from_any(image_paths)
     return songs, images

@@ -52,5 +52,12 @@ exe = EXE(
     debug=False,
     strip=False,
     upx=False,
-    console=True,
+    console=False,
 )
+
+if sys.platform == "darwin":
+    app = BUNDLE(
+        exe,
+        name="MusicGuy.app",
+        bundle_identifier="com.musicguy.desktop",
+    )

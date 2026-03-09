@@ -126,7 +126,6 @@ def _extract_entries_for_url(
     output_dir: Path,
 ) -> Tuple[List[Dict[str, Any]], List[Tuple[int, Dict[str, Any]]]]:
     outtmpl = str(output_dir / "%(title)s.%(ext)s")
-    print(f"outtmpl (listing): {outtmpl}")
 
     opts = _build_ydl_opts(outtmpl, listing=True)
     jobs: List[Dict[str, Any]] = []
@@ -184,7 +183,6 @@ def _download_single_track(
 
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
-            print("into single track dl")
             info = ydl.extract_info(entry_url, download=True)
     except DownloadError as e:
         err = _map_cookies_error(e)
@@ -207,7 +205,6 @@ def _download_single_track(
         }
 
     title = info.get("title") or title_hint or "(untitled)"
-    print(f"title to prove no collisions: {title}")
     output_path = str(output_dir / f"{title}.mp3")
 
     return root_index, {
@@ -223,7 +220,6 @@ def _download_single_track(
 def _download_for_urls(urls: List[str], output_dir: Path) -> List[Dict[str, Any]]:
     output_dir = output_dir.expanduser()
     output_dir.mkdir(parents=True, exist_ok=True)
-    print("into download urls")
 
     indexed_urls: List[Tuple[int, str]] = []
     for idx, raw in enumerate(urls):
@@ -237,11 +233,7 @@ def _download_for_urls(urls: List[str], output_dir: Path) -> List[Dict[str, Any]
         new_query = urlencode(query_dict, doseq=True)
         parsed_url = url_tuple._replace(query=new_query).geturl()
 
-        print(f"url: {parsed_url}")
-        print("done deleting")
-
         indexed_urls.append((idx, parsed_url))
-    print("done indexing")
 
     if not indexed_urls:
         raise ValueError("No URLs provided")
@@ -249,14 +241,11 @@ def _download_for_urls(urls: List[str], output_dir: Path) -> List[Dict[str, Any]
     failures: List[Tuple[int, Dict[str, Any]]] = []
     results_with_index: List[Tuple[int, Dict[str, Any]]] = []
 
-    print("prior to kicking downloads off")
     with ThreadPoolExecutor(max_workers=MAX_YTDLP_CONCURRENCY) as executor:
         futures = []
 
         for idx, url in indexed_urls:
-            print("prior to extracting url entries")
             jobs, url_failures = _extract_entries_for_url(idx, url, output_dir)
-            print("post extracting url entries")
             failures.extend(url_failures)
 
             for job in jobs:
