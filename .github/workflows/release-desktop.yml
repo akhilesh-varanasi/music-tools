@@ -2,6 +2,19 @@ name: release-desktop
 
 on:
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Publish a GitHub Release after build"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      release_tag:
+        description: "Tag to release when manually dispatching (example: v1.2.3)"
+        required: false
+        type: string
   push:
     tags:
       - "v*"
@@ -48,3 +61,57 @@ jobs:
         with:
           name: MusicGuy-${{ runner.os }}
           path: dist/**
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_release == 'true')
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: MusicGuy-*
+          path: release-assets
+          merge-multiple: false
+
+      - name: Resolve release tag
+        id: resolve_tag
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="${{ github.event.inputs.release_tag }}"
+          fi
+
+          if [[ -z "$TAG" ]]; then
+            echo "release_tag input is required when publish_release=true via workflow_dispatch"
+            exit 1
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Package artifacts and generate checksums
+        shell: bash
+        run: |
+          shopt -s nullglob
+          for dir in release-assets/MusicGuy-*; do
+            artifact_name="$(basename "$dir")"
+            tar -czf "release-assets/${artifact_name}.tar.gz" -C "$dir" .
+          done
+
+          sha256sum release-assets/*.tar.gz > release-assets/SHA256SUMS.txt
+
+      - name: Create or update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.resolve_tag.outputs.tag }}
+          name: MusicGuy ${{ steps.resolve_tag.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            release-assets/*.tar.gz
+            release-assets/SHA256SUMS.txt
