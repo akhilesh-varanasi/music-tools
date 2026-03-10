@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Optional
 from urllib.parse import urlparse, parse_qs, urlencode
@@ -10,6 +12,49 @@ import yt_dlp
 from yt_dlp.utils import DownloadError
 
 MAX_YTDLP_CONCURRENCY = 16
+
+
+def _is_cookie_db_missing_error(message: str) -> bool:
+    lower = (message or "").lower()
+    return (
+        "could not find chrome cookies database" in lower
+        or "could not find edge cookies database" in lower
+    )
+
+
+@lru_cache(maxsize=1)
+def _cookie_browser_candidates() -> Tuple[Tuple[str, Optional[str]], ...]:
+    candidates: List[Tuple[str, Optional[str]]] = [("chrome", "Default")]
+
+    # On Windows, users are often signed into YouTube under "Profile X"
+    # instead of the hardcoded "Default" profile.
+    if sys.platform == "win32":
+        candidates.append(("chrome", None))
+
+        local_app_data = os.environ.get("LOCALAPPDATA", "")
+        user_data_dir = Path(local_app_data) / "Google" / "Chrome" / "User Data"
+        if user_data_dir.exists():
+            profile_names: List[str] = []
+            for child in user_data_dir.iterdir():
+                if not child.is_dir():
+                    continue
+                name = child.name
+                if name == "Default" or name.startswith("Profile "):
+                    profile_names.append(name)
+
+            profile_names.sort(key=lambda n: (0 if n == "Default" else 1, n))
+            for name in profile_names:
+                candidates.append(("chrome", name))
+
+    deduped: List[Tuple[str, Optional[str]]] = []
+    seen: set[Tuple[str, Optional[str]]] = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        deduped.append(candidate)
+
+    return tuple(deduped)
 
 def _resolve_ffmpeg_location() -> Optional[str]:
     exe_dir = Path(sys.executable).resolve().parent
@@ -35,8 +80,15 @@ def _resolve_ffmpeg_location() -> Optional[str]:
 
     return None
 
-def _build_ydl_opts(outtmpl: str, listing: bool = False) -> Dict[str, Any]:
-    """Build yt-dlp options with Chrome Default cookies."""
+def _build_ydl_opts(
+    outtmpl: str,
+    listing: bool = False,
+    cookies_from_browser: Optional[Tuple[str, Optional[str]]] = None,
+) -> Dict[str, Any]:
+    """Build yt-dlp options with browser cookies."""
+    if cookies_from_browser is None:
+        cookies_from_browser = ("chrome", "Default")
+
     opts: Dict[str, Any] = {
         # Prefer direct HTTPS audio formats first; keep generic fallbacks after.
         # This helps avoid fragile HLS-only paths when challenge solving is degraded.
@@ -52,7 +104,7 @@ def _build_ydl_opts(outtmpl: str, listing: bool = False) -> Dict[str, Any]:
         ],
         "quiet": False,
         "no_warnings": False,
-        "cookiesfrombrowser": ("chrome", "Default"),
+        "cookiesfrombrowser": cookies_from_browser,
         # YouTube extraction increasingly requires JS challenge solving.
         # yt-dlp expects a dict format for js_runtimes.
         "js_runtimes": {"node": {}, "deno": {}},
@@ -82,11 +134,11 @@ def _map_cookies_error(e: DownloadError) -> str:
     msg = str(e)
     lower = msg.lower()
 
-    if "could not find chrome cookies database" in lower:
+    if _is_cookie_db_missing_error(msg):
         return (
-            "Chrome cookies database not found for profile 'Default'. "
-            "Please open Chrome on this machine, log into YouTube in the "
-            "Default profile, then try again."
+            "Chrome cookies database was not found in any detected Chrome profile. "
+            "Please open Chrome for this Windows user, confirm YouTube is signed in, "
+            "close Chrome, and try again."
         )
 
     if "no supported javascript runtime could be found" in lower:
@@ -127,15 +179,44 @@ def _extract_entries_for_url(
 ) -> Tuple[List[Dict[str, Any]], List[Tuple[int, Dict[str, Any]]]]:
     outtmpl = str(output_dir / "%(title)s.%(ext)s")
 
-    opts = _build_ydl_opts(outtmpl, listing=True)
     jobs: List[Dict[str, Any]] = []
     failures: List[Tuple[int, Dict[str, Any]]] = []
+    last_cookie_error: Optional[DownloadError] = None
 
-    try:
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-    except DownloadError as e:
-        err = _map_cookies_error(e)
+    info: Optional[Dict[str, Any]] = None
+    for cookies_candidate in _cookie_browser_candidates():
+        opts = _build_ydl_opts(
+            outtmpl,
+            listing=True,
+            cookies_from_browser=cookies_candidate,
+        )
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+            break
+        except DownloadError as e:
+            if _is_cookie_db_missing_error(str(e)):
+                last_cookie_error = e
+                continue
+
+            err = _map_cookies_error(e)
+            failures.append(
+                (
+                    root_index,
+                    {
+                        "url": url,
+                        "video_id": None,
+                        "title": None,
+                        "output_path": None,
+                        "success": False,
+                        "error": err,
+                    },
+                )
+            )
+            return jobs, failures
+
+    if info is None:
+        err = _map_cookies_error(last_cookie_error or DownloadError("Unknown download error"))
         failures.append(
             (
                 root_index,
@@ -179,13 +260,45 @@ def _download_single_track(
     title_hint = job.get("title_hint")
 
     outtmpl = str(output_dir / "%(title)s.%(ext)s")
-    opts = _build_ydl_opts(outtmpl, listing=False)
+    info: Optional[Dict[str, Any]] = None
+    last_cookie_error: Optional[DownloadError] = None
 
-    try:
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(entry_url, download=True)
-    except DownloadError as e:
-        err = _map_cookies_error(e)
+    for cookies_candidate in _cookie_browser_candidates():
+        opts = _build_ydl_opts(
+            outtmpl,
+            listing=False,
+            cookies_from_browser=cookies_candidate,
+        )
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(entry_url, download=True)
+            break
+        except DownloadError as e:
+            if _is_cookie_db_missing_error(str(e)):
+                last_cookie_error = e
+                continue
+
+            err = _map_cookies_error(e)
+            return root_index, {
+                "url": root_url,
+                "video_id": video_id_hint,
+                "title": title_hint,
+                "output_path": None,
+                "success": False,
+                "error": err,
+            }
+        except Exception as e:
+            return root_index, {
+                "url": root_url,
+                "video_id": video_id_hint,
+                "title": title_hint,
+                "output_path": None,
+                "success": False,
+                "error": str(e),
+            }
+
+    if info is None:
+        err = _map_cookies_error(last_cookie_error or DownloadError("Unknown download error"))
         return root_index, {
             "url": root_url,
             "video_id": video_id_hint,
@@ -193,15 +306,6 @@ def _download_single_track(
             "output_path": None,
             "success": False,
             "error": err,
-        }
-    except Exception as e:
-        return root_index, {
-            "url": root_url,
-            "video_id": video_id_hint,
-            "title": title_hint,
-            "output_path": None,
-            "success": False,
-            "error": str(e),
         }
 
     title = info.get("title") or title_hint or "(untitled)"
